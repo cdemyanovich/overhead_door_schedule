@@ -1,6 +1,7 @@
 require 'nokogiri'
 require 'open-uri'
 require 'ri_cal'
+require 'chronic'
 
 doc = Nokogiri::HTML(open('http://s2-arena.ezleagues.ezfacility.com/teams/479482/Overhead-Door.aspx'))
 
@@ -16,7 +17,7 @@ calendar = RiCal.Calendar do |cal|
   
     cal.event do |event|
       event.summary = "#{home_team} vs. #{away_team}"
-      event.dtstart =  DateTime.parse("#{game_date} #{game_time}")
+      event.dtstart =  DateTime.parse("#{game_date} #{game_time}").with_floating_timezone
       event.duration = "PT1H" # 1 hour
       event.location = "S2 Ice Arena"
     end
