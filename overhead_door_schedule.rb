@@ -1,35 +1,29 @@
-require 'hpricot'
+require 'nokogiri'
 require 'open-uri'
-require 'icalendar'
+require 'ri_cal'
 
-calendar = Icalendar::Calendar.new
+doc = Nokogiri::HTML(open('http://s2-arena.ezleagues.ezfacility.com/teams/479482/Overhead-Door.aspx'))
 
-schedule = Hpricot(open("http://ezleagues.ezfacility.com/team.aspx?team_id=341983"))
+calendar = RiCal.Calendar do |cal|
 
-games = schedule.search('table#ctl00_C_Schedule1_GridView1 > tr.RowStyle | table#ctl00_C_Schedule1_GridView1 > tr.AlternateRowStyle')
-games.each do |game|
-  raw_details = game.children_of_type('td')
-  details = raw_details.map { |d| d.inner_text.to_s.strip }
+  doc.css('table#_ctl0_C_Schedule1_GridView1 > tr.RowStyle', 'table#_ctl0_C_Schedule1_GridView1 > tr.AlternateRowStyle').each do |game|
+    date_href = game.children[0].css('a')[0]['href']
+    game_date = date_href.scan(/\d{1,2}\/\d{1,2}\/\d{4}/)[0]
+    game_time = game.children[4].content.strip
   
-  next if details[4] == "Final" # skip games already played
+    home_team = game.children[1].content.strip
+    away_team = game.children[3].content.strip
   
-  game_date_regex = /\w{3}-(\w{3}) (\d{1,2})/
-  match_data = game_date_regex.match(details[0])
+    cal.event do |event|
+      event.summary = "#{home_team} vs. #{away_team}"
+      event.dtstart =  DateTime.parse("#{game_date} #{game_time}")
+      event.duration = "PT1H" # 1 hour
+      event.location = "S2 Ice Arena"
+    end
+  end
   
-  raise ArgumentError, "invalid game date: #{details[0]}" if match_data.nil?
-  
-  month, day = match_data[1], match_data[2]
-  year = %w(Jan Feb Mar).include?(month) ? 2009 : 2008
-  
-  event = Icalendar::Event.new
-  event.summary = "#{details[1]} vs. #{details[3]}"
-  event.location = "S2: #{details[5]}"
-  event.dtstart = DateTime.parse("#{month} #{day}, #{year} #{details[4]}")
-  event.duration = "PT1H" # 1 hour
-    
-  calendar.add_event(event)
 end
 
-File.open('overhead_door_fall_2008_09.ics', 'w') do |file|
-  file.puts calendar.to_ical
+File.open('overhead_door_fall_2009_10.ics', 'w') do |file|
+  file.puts calendar.export_to(file)
 end
